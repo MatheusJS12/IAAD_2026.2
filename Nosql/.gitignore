@@ -1,0 +1,7 @@
+# Bibliotecas baixadas pelo npm (recriadas com "npm install")
+node_modules/
+
+# Logs gerados pelo emulador do Firebase
+firebase-debug.log
+firestore-debug.log
+ui-debug.log
