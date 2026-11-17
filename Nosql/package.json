@@ -1,0 +1,17 @@
+{
+  "name": "torneio-robotica-firestore",
+  "version": "1.0.0",
+  "description": "Minicurso NoSQL (Cloud Firestore) - Torneio de Robótica",
+  "scripts": {
+    "emulador": "firebase emulators:start --only firestore --project torneio-robotica",
+    "carga": "node 0_carga.js",
+    "create": "node 1_create.js",
+    "read": "node 2_read.js",
+    "update": "node 3_update.js",
+    "delete": "node 4_delete.js",
+    "relacionamentos": "node 5_relacionamentos.js"
+  },
+  "dependencies": {
+    "firebase-admin": "^13.0.0"
+  }
+}
