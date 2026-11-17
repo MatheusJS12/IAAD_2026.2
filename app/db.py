@@ -11,9 +11,33 @@ def conectar():
     return mysql.connector.connect(**DB_CONFIG)
 
 
+def _corrigir_texto(valor):
+    """Corrige texto UTF-8 que foi lido como Latin-1 (ex.: ``SumÃ´``)."""
+    if not isinstance(valor, str):
+        return valor
+    corrigido = valor
+    for _ in range(3):
+        if not any(marca in corrigido for marca in ("Ã", "Â", "â")):
+            break
+        novo = None
+        for origem in ("latin1", "cp1252"):
+            try:
+                novo = corrigido.encode(origem).decode("utf-8")
+                break
+            except (UnicodeEncodeError, UnicodeDecodeError):
+                continue
+        if novo is None:
+            break
+        if novo == corrigido:
+            break
+        corrigido = novo
+    return corrigido
+
+
 def _converter(linha):
-    # DECIMAL vem como Decimal; convertemos para float para os gráficos
-    return {k: float(v) if isinstance(v, Decimal) else v for k, v in linha.items()}
+    # DECIMAL vem como Decimal; convertemos para float para os gráficos.
+    # Também normalizamos mojibake sem alterar o conteúdo no banco.
+    return {k: float(v) if isinstance(v, Decimal) else _corrigir_texto(v) for k, v in linha.items()}
 
 
 def consultar(sql, params=None):

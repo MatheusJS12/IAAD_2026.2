@@ -8,7 +8,11 @@ import streamlit as st
 
 from db import chamar_procedure, consultar, executar, mensagem_erro
 
-st.set_page_config(page_title="Torneio de Robótica", page_icon="🤖", layout="wide")
+st.set_page_config(page_title="Torneio de Robótica", page_icon="🤖", layout="wide",
+                   initial_sidebar_state="expanded")
+
+if "tema" not in st.session_state:
+    st.session_state.tema = "Escuro"
 
 CATEGORIAS = ["Sumô", "Mini Sumô", "Seguidor de Linha", "Resgate"]
 FUNCOES = ["Capitão", "Programador", "Mecânico", "Eletrônica", "Mentor"]
@@ -16,30 +20,30 @@ DATA_MIN, DATA_MAX = dt.date(1950, 1, 1), dt.date(2035, 12, 31)
 
 
 # ---------------------------------------------------------------------
-# Tema visual (paleta monocromática Ciano Robótica)
+# Tema visual (paleta pastel com violeta, azul e verde-água)
 # ---------------------------------------------------------------------
 
-PALETA = ["#22D3EE", "#06B6D4", "#0891B2", "#0E7490", "#67E8F9", "#155E75"]
-ESCALA = ["#164E63", "#06B6D4", "#67E8F9"]          # degradê para barras contínuas
-SEQ3 = ["#155E75", "#06B6D4", "#A5F3FC"]            # mínima / média / máxima
+PALETA = ["#8B7CF6", "#68C9C3", "#F4B46A", "#E98BB5", "#78A9E8", "#A8D989"]
+ESCALA = ["#D9D1FF", "#8B7CF6", "#5B4FC5"]          # degradê para barras contínuas
+SEQ3 = ["#A99DFF", "#68C9C3", "#F4B46A"]            # mínima / média / máxima
 
 ESTILO = """
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap');
 
 :root {
-  --bg: #0B0F19;
-  --surface: #111827;
-  --elevated: #1E293B;
-  --accent: #06B6D4;
-  --accent-light: #22D3EE;
-  --accent-dark: #0891B2;
-  --on-accent: #04222B;
-  --border: rgba(34, 211, 238, .18);
-  --border-strong: rgba(34, 211, 238, .42);
-  --glow: rgba(6, 182, 212, .35);
-  --text: #F1F5F9;
-  --muted: #94A3B8;
+  --bg: #0F172A;
+  --surface: #151F33;
+  --elevated: #202C43;
+  --accent: #8B7CF6;
+  --accent-light: #A99DFF;
+  --accent-dark: #5B4FC5;
+  --on-accent: #FFFFFF;
+  --border: rgba(169, 157, 255, .18);
+  --border-strong: rgba(169, 157, 255, .42);
+  --glow: rgba(139, 124, 246, .30);
+  --text: #F7F8FC;
+  --muted: #AAB3C2;
   --radius: 12px;
 }
 
@@ -58,7 +62,7 @@ ESTILO = """
 /* ---------- Fundo e limpeza visual ---------- */
 .stApp {
   background:
-    radial-gradient(1100px 480px at 85% -10%, rgba(6, 182, 212, .10), transparent 60%),
+    radial-gradient(1100px 480px at 85% -10%, rgba(139, 124, 246, .12), transparent 60%),
     var(--bg);
 }
 [data-testid="stHeader"] { background: transparent; }
@@ -234,9 +238,93 @@ li[role="option"]:hover, li[role="option"][aria-selected="true"] { background: r
 .card:hover { transform: translateY(-3px); border-color: var(--border-strong); box-shadow: 0 12px 30px -14px var(--glow); }
 .card h4 { margin: 0 0 .35rem; color: var(--accent-light); font-size: .95rem; font-weight: 600; }
 .card p { margin: 0; color: var(--muted) !important; font-size: .88rem; line-height: 1.5; }
+.member-grid { display:grid; grid-template-columns:repeat(6,minmax(0,1fr)); gap:.6rem; }
+.member-card { display:flex; flex-direction:column; align-items:center; text-align:center; gap:.35rem; min-height:100px; padding:.8rem .45rem; border:1px solid var(--border); border-radius:14px; background:var(--surface); color:var(--text)!important; text-decoration:none!important; transition:transform .18s,border-color .18s,box-shadow .18s; }
+.member-card:hover { transform:translateY(-3px); border-color:var(--accent-light); box-shadow:0 12px 28px -16px var(--glow); }
+.member-card span { font-size:1.2rem; }
+.member-card strong { font-size:.76rem; line-height:1.25; }
+.member-card small { color:var(--muted); font-size:.7rem; }
+.leader-card { min-height:5.35rem; padding:1.15rem 1.3rem; border:1px solid var(--border); border-radius:var(--radius); background:linear-gradient(180deg,var(--elevated),var(--surface)); }
+.leader-label { color:var(--muted); text-transform:uppercase; letter-spacing:.07em; font-size:.72rem; font-weight:600; }
+.leader-name { color:var(--text); font-size:1.05rem; line-height:1.18; font-weight:700; overflow-wrap:anywhere; margin-top:.55rem; }
+
+/* ---------- Moldura leve inspirada na referência ---------- */
+.topbar { display:flex; align-items:center; gap:.65rem; margin:0 0 1.35rem; }
+.topbar-status, .profile-chip, .notification-chip {
+  min-height:2.55rem; display:flex; align-items:center; justify-content:center;
+  border:1px solid var(--border); border-radius:999px; background:var(--surface);
+  color:var(--muted); font-size:.78rem; white-space:nowrap;
+}
+.topbar-status { padding:0 .85rem; color:#68C9C3; }
+.notification-chip { width:2.55rem; position:relative; font-size:1rem; }
+.notification-chip::after { content:""; position:absolute; top:.45rem; right:.52rem; width:.38rem; height:.38rem; border-radius:50%; background:#E98BB5; }
+.profile-chip { padding:.25rem .8rem .25rem .35rem; gap:.45rem; color:var(--text); }
+.profile-avatar { width:1.85rem; height:1.85rem; display:grid; place-items:center; border-radius:50%; background:#F4B46A; color:#4C3521; font-weight:800; }
+[class*="st-key-topbar-"] .stButton button { min-width:2.55rem; padding:.35rem .5rem; border-radius:999px; border:1px solid var(--border); background:var(--surface); color:var(--text); }
+[class*="st-key-topbar-"] .stButton button:hover { border-color:var(--accent-light); background:rgba(139,124,246,.14); }
+[class*="st-key-topbar-"] .stButton button p { font-size:1.05rem; line-height:1; }
+.dashboard-intro { margin:.25rem 0 1.15rem; }
+.dashboard-intro .eyebrow { color:#F4B46A; font-weight:700; font-size:.92rem; }
+.dashboard-intro h1 { margin:.35rem 0 .25rem; font-size:2rem; }
+.dashboard-intro p { margin:0; color:var(--muted); max-width:780px; }
+.story-block { margin:1.55rem 0 .7rem; }
+.story-kicker { color:var(--accent-light); font-size:.72rem; font-weight:700; letter-spacing:.1em; text-transform:uppercase; }
+.story-title { color:var(--text); font-size:1.18rem; font-weight:700; margin-top:.25rem; }
+.story-copy { color:var(--muted); font-size:.88rem; margin-top:.2rem; }
+.quick-grid { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:.8rem; }
+.quick-card { display:block; padding:1rem 1.1rem; border:1px solid var(--border); border-radius:14px; background:var(--surface); color:var(--text); text-decoration:none; }
+.quick-card:hover { border-color:var(--accent-light); background:var(--elevated); }
+.quick-card strong { display:block; margin-bottom:.25rem; }
+.quick-card span { color:var(--muted); font-size:.82rem; }
+.activity-list { display:grid; gap:.55rem; }
+.activity-item { display:flex; align-items:center; gap:.75rem; padding:.7rem .8rem; border:1px solid var(--border); border-radius:12px; background:var(--surface); }
+.activity-icon { width:2rem; height:2rem; display:grid; place-items:center; border-radius:10px; background:rgba(139,124,246,.16); }
+.activity-item strong { color:var(--text); font-size:.87rem; }
+.activity-item small { display:block; color:var(--muted); margin-top:.12rem; }
+.period-filter { padding:.8rem 1rem; border:1px solid var(--border); border-radius:14px; background:var(--surface); margin-bottom:1rem; }
+.period-label { color:var(--muted); font-size:.74rem; text-transform:uppercase; letter-spacing:.08em; font-weight:700; margin-bottom:.35rem; }
+
+/* Streamlit atual usa stRadioOption; o seletor antigo deixava as bolinhas visíveis. */
+[data-testid="stSidebar"] label[data-testid="stRadioOption"] { width:100%; margin:0; padding:.58rem .72rem; border-radius:10px; border:1px solid transparent; cursor:pointer; }
+[data-testid="stSidebar"] label[data-testid="stRadioOption"] > div:first-child { display:none; }
+[data-testid="stSidebar"] label[data-testid="stRadioOption"] p { color:var(--muted); font-weight:500; white-space:nowrap; }
+[data-testid="stSidebar"] label[data-testid="stRadioOption"]:has(input:checked) { background:rgba(139,124,246,.16); border-color:var(--border-strong); box-shadow:inset 3px 0 0 var(--accent-light); }
+[data-testid="stSidebar"] label[data-testid="stRadioOption"]:has(input:checked) p { color:var(--text); font-weight:700; }
+
+@media (max-width: 900px) {
+  .block-container { padding:1.25rem 1rem 2rem; }
+  .topbar { flex-wrap:wrap; }
+  .quick-grid { grid-template-columns:1fr; }
+  .member-grid { grid-template-columns:repeat(3,minmax(0,1fr)); }
+  .hero { padding:1.7rem; }
+  .stApp .hero h1 { font-size:2rem !important; }
+}
+@media (max-width: 640px) {
+  .topbar-status, .profile-chip { flex:1; }
+  .dashboard-intro h1 { font-size:1.55rem; }
+  .member-grid { grid-template-columns:repeat(2,minmax(0,1fr)); }
+}
 </style>
 """
 st.markdown(ESTILO, unsafe_allow_html=True)
+if st.session_state.tema == "Claro":
+    st.markdown("""
+<style>
+.stApp:has(.theme-light) { --bg:#F7F9FC; --surface:#FFFFFF; --elevated:#F3F0FF; --text:#20263A; --muted:#6E778B; --accent-light:#6B5CCF; --accent:#7B6FE8; --accent-dark:#5B4FC5; --on-accent:#FFFFFF; --border:rgba(72,66,125,.14); --border-strong:rgba(107,92,207,.36); --glow:rgba(123,111,232,.18); background:radial-gradient(900px 400px at 85% -10%,rgba(123,111,232,.10),transparent 60%),var(--bg)!important; }
+.stApp:has(.theme-light) p,.stApp:has(.theme-light) label { color:#4F5A70; }
+.stApp:has(.theme-light) [data-testid="stMetric"],.stApp:has(.theme-light) [data-testid="stForm"],.stApp:has(.theme-light) [data-testid="stExpander"] { background:#fff; }
+.stApp:has(.theme-light) [data-testid="stSidebar"] { background:#FFFFFF; }
+.stApp:has(.theme-light) [data-testid="stMetricValue"],.stApp:has(.theme-light) h1,.stApp:has(.theme-light) h2,.stApp:has(.theme-light) h3 { color:#20263A; }
+.stApp:has(.theme-light) .hero { background:radial-gradient(600px 240px at 92% 0%,rgba(244,180,106,.22),transparent 70%),linear-gradient(135deg,#fff 0%,#F7F9FC 60%,#F3F0FF 100%); }
+.stApp:has(.theme-light) .hero h1 { background:linear-gradient(90deg,#20263A,#6B5CCF);-webkit-background-clip:text;background-clip:text; }
+.stApp:has(.theme-light) .hero p,.stApp:has(.theme-light) .card p { color:#6E778B!important; }
+.stApp:has(.theme-light) .card { background:#fff; }
+.stApp:has(.theme-light) div[data-baseweb="input"],.stApp:has(.theme-light) div[data-baseweb="select"]>div,.stApp:has(.theme-light) div[data-baseweb="textarea"] { background:#fff!important;color:#20263A!important; }
+.stApp:has(.theme-light) [data-testid="stAlert"] { color:#303A50; }
+.stApp:has(.theme-light) [data-testid="stAlert"] p { color:inherit!important; }
+</style>
+<div class="theme-light" style="display:none"></div>
+""", unsafe_allow_html=True)
 
 
 def cabecalho(titulo, subtitulo, icone):
@@ -258,21 +346,28 @@ def tabela(df, **kw):
 
 def grafico(fig):
     """Aplica a identidade visual do tema a um gráfico Plotly e o exibe."""
+    claro = st.session_state.tema == "Claro"
+    cor_texto = "#334A52" if claro else "#CBD5E1"
+    cor_hover = "#FFFFFF" if claro else "#1E293B"
     fig.update_layout(
         paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)",
         colorway=PALETA,
-        font=dict(family="Inter, sans-serif", color="#CBD5E1", size=13),
-        title=dict(font=dict(size=16, color="#F1F5F9"), x=0, xanchor="left"),
+        font=dict(family="Inter, sans-serif", color=cor_texto, size=13),
+        title=dict(font=dict(size=16, color="#172A32" if claro else "#F1F5F9"), x=0, xanchor="left"),
         margin=dict(l=10, r=10, t=60, b=10),
         legend=dict(bgcolor="rgba(0,0,0,0)", title_text=""),
-        hoverlabel=dict(bgcolor="#1E293B", bordercolor="#22D3EE",
-                        font=dict(family="Inter, sans-serif", color="#F1F5F9", size=13)),
+        hoverlabel=dict(bgcolor=cor_hover, bordercolor="#0E8B8D" if claro else "#22D3EE",
+                        font=dict(family="Inter, sans-serif", color="#172A32" if claro else "#F1F5F9", size=13)),
     )
     fig.update_xaxes(gridcolor="rgba(148,163,184,.12)", linecolor="rgba(148,163,184,.25)",
                      zeroline=False, tickfont=dict(color="#94A3B8"))
     fig.update_yaxes(gridcolor="rgba(148,163,184,.12)", linecolor="rgba(148,163,184,.25)",
                      zeroline=False, tickfont=dict(color="#94A3B8"))
-    st.plotly_chart(fig, width="stretch", theme=None)
+    titulo = (fig.layout.title.text or "grafico").replace(" ", "_")
+    pagina = st.session_state.get("pagina_atual", "app")
+    evento = st.plotly_chart(fig, width="stretch", theme=None, on_select="rerun",
+                            selection_mode="points", key=f"grafico_{pagina}_{titulo}")
+    return evento
 
 
 # ---------------------------------------------------------------------
@@ -312,16 +407,50 @@ def chave_de(dic, valor):
     return valores.index(valor) if valor in valores else 0
 
 
+def pontos_selecionados(evento):
+    """Lê uma seleção do Plotly sem quebrar em versões sem seleção ativa."""
+    selecao = getattr(evento, "selection", None)
+    return getattr(selecao, "points", []) if selecao else []
+
+
+def barra_superior(chave):
+    """Barra visual comum ao Início e ao Dashboard."""
+    with st.container(key=f"topbar-{chave}"):
+        busca, status, perfil, tema = st.columns([2.55, 1.15, 1.45, .55])
+        with busca:
+            return_value = st.text_input("Buscar", placeholder="Buscar equipe, robô ou prova...",
+                                         label_visibility="collapsed", key=f"busca_{chave}")
+        with status:
+            st.markdown('<div class="topbar-status">● Banco local</div>', unsafe_allow_html=True)
+        with perfil:
+            st.markdown('<div class="profile-chip"><span class="profile-avatar">IA</span> IAAD 2026.2</div>',
+                        unsafe_allow_html=True)
+        with tema:
+            st.button("☀️" if st.session_state.tema == "Claro" else "🌙",
+                      key=f"alternar_tema_{chave}", on_click=alternar_tema,
+                      help="Alternar tema", use_container_width=True)
+    return return_value.strip()
+
+
+def bloco_historia(kicker, titulo, texto):
+    st.markdown(f'<div class="story-block"><div class="story-kicker">{kicker}</div>'
+                f'<div class="story-title">{titulo}</div><div class="story-copy">{texto}</div></div>',
+                unsafe_allow_html=True)
+
+
 # ---------------------------------------------------------------------
 # Páginas
 # ---------------------------------------------------------------------
 
 def pagina_inicio():
+    busca = barra_superior("inicio")
     st.markdown("""<div class="hero">
-<span class="hero-badge">🤖 IAAD 2026.2 · 2ª VA</span>
-<h1>Torneio de Robótica</h1>
-<p>Sistema de gerenciamento do torneio com MySQL, Streamlit e Plotly.</p>
+<span class="hero-badge">🤖 IAAD 2026.2 · Grupo 04 · TORNEIO DE ROBÓTICA</span>
+<h1>Bem-vindo ao painel</h1>
+<p>Consulte os cadastros, acompanhe os resultados e entenda o desempenho do torneio em um só lugar.</p>
 </div>""", unsafe_allow_html=True)
+    if busca:
+        st.caption(f"A busca será aplicada nos módulos de cadastro e no Dashboard: {busca}")
     c = consultar("""SELECT (SELECT COUNT(*) FROM equipe)     AS equipes,
                             (SELECT COUNT(*) FROM robo)       AS robos,
                             (SELECT COUNT(*) FROM resultado)  AS resultados,
@@ -331,13 +460,46 @@ def pagina_inicio():
     col[1].metric("Robôs", int(c.robos))
     col[2].metric("Resultados", int(c.resultados))
     col[3].metric("Integrantes", int(c.integrantes))
-    st.markdown("""<div class="section-label">Menu lateral</div>
-<div class="grid">
-<div class="card"><h4>Equipes, Robôs, Resultados e Integrantes</h4><p>CRUD completo de cada tabela</p></div>
-<div class="card"><h4>Consultas</h4><p>Consultas não triviais (JOIN, GROUP BY, agregação, datas) e a stored procedure</p></div>
-<div class="card"><h4>Dashboard</h4><p>Gráficos interativos</p></div>
-<div class="card"><h4>Integridade e Trigger</h4><p>Demonstração das FKs, da cascata e da trigger</p></div>
-</div>""", unsafe_allow_html=True)
+
+    bloco_historia("Acompanhamento rápido", "O que precisa de atenção?",
+                    "Use o Dashboard para acompanhar a história dos resultados; aqui ficam os sinais operacionais do sistema.")
+    sem_resultado = int(consultar("SELECT COUNT(*) AS total FROM vw_robos_sem_resultado").iloc[0].total)
+    if sem_resultado:
+        st.warning(f"{sem_resultado} robô(s) ainda não possui(em) resultado. Verifique os cadastros antes da apresentação.")
+    elif int(c.robos) == 0 or int(c.resultados) == 0:
+        st.info("Ainda há poucos dados para compor os indicadores. Cadastre equipes, robôs e resultados para completar a visão.")
+    else:
+        st.success("Os cadastros principais já possuem dados suficientes para acompanhar o torneio.")
+
+    bloco_historia("Acesso rápido", "Onde continuar",
+                    "Os módulos de cadastro mantêm o CRUD; o Dashboard concentra os gráficos e a leitura de desempenho.")
+    atalhos = [("Equipes", "👥", "Cadastre e consulte participantes."),
+               ("Resultados", "🏆", "Registre pontuações e classificações."),
+               ("Dashboard", "📊", "Explore gráficos e filtros do torneio.")]
+    cols = st.columns(3)
+    for coluna, (pagina, icone, descricao) in zip(cols, atalhos):
+        with coluna:
+            with st.container(border=True):
+                if st.button(f"{icone}  {pagina}", key=f"atalho_{pagina}", use_container_width=True):
+                    st.session_state.pagina_menu = pagina
+                    st.rerun()
+                st.caption(descricao)
+
+    st.markdown('<div class="section-label">Equipe do projeto</div>', unsafe_allow_html=True)
+    integrantes_projeto = [
+        ("Bruno Rodrigo Silva Lins", "https://github.com/RodrisLins87"),
+        ("Guilherme Abraão Teixeira Bezerra", "https://github.com/teixeiraguilherme"),
+        ("Thyago Murilo Ferreira dos Santos", "https://github.com/ThyagomMurilo09"),
+        ("Danielly Mendonça Nunes", "https://github.com/daniellynuness"),
+        ("Matheus Júlio da Silva", None),
+        ("Paulo Henrique da Fonseca Bezerra", None),
+    ]
+    cards = []
+    for nome, url in integrantes_projeto:
+        tag, destino = ("a", f' href="{url}" target="_blank" rel="noopener noreferrer"') if url else ("div", "")
+        cards.append(f'<{tag} class="member-card"{destino}><span>🤖</span><strong>{nome}</strong>'
+                     f'<small>{"Abrir perfil no GitHub ↗" if url else "Equipe do projeto"}</small></{tag}>')
+    st.markdown('<div class="member-grid">' + "".join(cards) + '</div>', unsafe_allow_html=True)
 
 
 def pagina_equipes():
@@ -636,65 +798,145 @@ def pagina_consultas():
 
 
 def pagina_dashboard():
-    cabecalho("Dashboard", "Indicadores e gráficos do torneio", "📊")
-    desemp = consultar("SELECT * FROM vw_desempenho_equipe")
-    res = consultar("""SELECT r.nome_prova, r.pontuacao, ro.categoria, ro.nome_robo, e.nome_equipe
-                         FROM resultado r
-                         JOIN robo ro  ON ro.id_robo  = r.id_robo
-                         JOIN equipe e ON e.id_equipe = ro.id_equipe""")
+    busca = barra_superior("dashboard")
+    st.markdown("""<div class="dashboard-intro">
+      <div class="eyebrow">👋 Olá, somos o Grupo 04!</div>
+      <h1>Dashboard do torneio</h1>
+      <p>A leitura começa pela liderança, passa pela distribuição dos robôs e termina na consistência das pontuações por prova.</p>
+    </div>""", unsafe_allow_html=True)
 
-    col = st.columns(4)
-    col[0].metric("Provas", res.nome_prova.nunique())
-    col[1].metric("Média geral", f"{res.pontuacao.mean():.2f}" if not res.empty else "-")
-    col[2].metric("Maior pontuação", f"{res.pontuacao.max():.2f}" if not res.empty else "-")
-    lider = desemp.sort_values("pontuacao_total", ascending=False).iloc[0] if not desemp.empty else None
-    col[3].metric("Equipe líder", lider.nome_equipe if lider is not None else "-")
+    res = consultar("""SELECT r.nome_prova, r.classificacao, r.pontuacao,
+                            ro.categoria, ro.nome_robo, ro.data_criacao,
+                            e.nome_equipe, e.cidade
+                       FROM resultado r
+                       JOIN robo ro  ON ro.id_robo  = r.id_robo
+                       JOIN equipe e ON e.id_equipe = ro.id_equipe""")
+    todos_robos = consultar("""SELECT ro.nome_robo, ro.categoria, ro.data_criacao,
+                                    e.nome_equipe, e.cidade
+                               FROM robo ro JOIN equipe e ON e.id_equipe = ro.id_equipe""")
 
-    c1, c2 = st.columns(2)
-    with c1:
-        fig = px.bar(desemp.sort_values("pontuacao_total"), x="pontuacao_total", y="nome_equipe",
-                     orientation="h", title="Pontuação total por equipe",
-                     labels={"pontuacao_total": "Pontos", "nome_equipe": ""},
-                     color="pontuacao_total", color_continuous_scale=ESCALA)
-        fig.update_coloraxes(showscale=False)
-        fig.update_traces(marker_line_width=0,
-                          hovertemplate="<b>%{y}</b><br>%{x:.1f} pontos<extra></extra>")
-        grafico(fig)
-    with c2:
-        cat = consultar("SELECT categoria, COUNT(*) AS qtd FROM robo GROUP BY categoria")
-        fig = px.pie(cat, names="categoria", values="qtd", hole=0.55, title="Robôs por categoria",
-                     color_discrete_sequence=PALETA)
-        fig.update_traces(marker=dict(line=dict(color="#0B0F19", width=3)))
-        grafico(fig)
+    filtros = st.columns([1.15, 1.15, 1.15, 1.15])
+    with filtros[0]:
+        periodo = st.selectbox("Período", ["Todos os dados", "Ano de 2025", "Ano de 2026"], key="dashboard_periodo")
+    with filtros[1]:
+        provas = ["Todas"] + sorted(res.nome_prova.dropna().unique().tolist()) if not res.empty else ["Todas"]
+        filtro_prova = st.selectbox("Prova", provas, key="dashboard_prova")
+    with filtros[2]:
+        categorias = ["Todas"] + sorted(todos_robos.categoria.dropna().unique().tolist()) if not todos_robos.empty else ["Todas"]
+        filtro_categoria = st.selectbox("Categoria", categorias, key="dashboard_categoria")
+    with filtros[3]:
+        cidades = ["Todas"] + sorted(todos_robos.cidade.dropna().unique().tolist()) if not todos_robos.empty else ["Todas"]
+        filtro_cidade = st.selectbox("Cidade", cidades, key="dashboard_cidade")
 
-    c3, c4 = st.columns(2)
-    with c3:
-        fig = px.box(res, x="nome_prova", y="pontuacao", points="all", hover_data=["nome_robo"],
-                     title="Distribuição das pontuações por prova",
-                     labels={"nome_prova": "", "pontuacao": "Pontuação"},
-                     color_discrete_sequence=[PALETA[0]])
-        fig.update_traces(fillcolor="rgba(34,211,238,.15)", line=dict(width=1.5),
-                          marker=dict(size=6, opacity=.85))
-        grafico(fig)
-    with c4:
-        est = consultar("SELECT * FROM vw_estatisticas_categoria ORDER BY media_pontuacao DESC")
-        fig = px.bar(est, x="categoria", y=["menor_pontuacao", "media_pontuacao", "maior_pontuacao"],
-                     barmode="group", title="Pontuação por categoria (mínima, média e máxima)",
-                     labels={"categoria": "", "value": "Pontuação", "variable": ""},
-                     color_discrete_sequence=SEQ3)
+    if periodo != "Todos os dados":
+        ano = periodo[-4:]
+        res = res[res.data_criacao.astype(str).str[:4] == ano]
+        todos_robos = todos_robos[todos_robos.data_criacao.astype(str).str[:4] == ano]
+    if filtro_prova != "Todas":
+        res = res[res.nome_prova == filtro_prova]
+    if filtro_categoria != "Todas":
+        res = res[res.categoria == filtro_categoria]
+        todos_robos = todos_robos[todos_robos.categoria == filtro_categoria]
+    if filtro_cidade != "Todas":
+        res = res[res.cidade == filtro_cidade]
+        todos_robos = todos_robos[todos_robos.cidade == filtro_cidade]
+    if busca:
+        termo = busca.lower()
+        colunas_busca = ["nome_prova", "nome_robo", "nome_equipe", "categoria", "cidade"]
+        mascara = res[colunas_busca].fillna("").astype(str).apply(lambda coluna: coluna.str.lower().str.contains(termo, regex=False)).any(axis=1)
+        res = res[mascara]
+        mascara_robos = todos_robos[["nome_robo", "nome_equipe", "categoria", "cidade"]].fillna("").astype(str).apply(lambda coluna: coluna.str.lower().str.contains(termo, regex=False)).any(axis=1)
+        todos_robos = todos_robos[mascara_robos]
+
+    if res.empty:
+        st.info("Nenhum resultado corresponde aos filtros atuais. Tente ampliar o período ou remover algum filtro.")
+    lider = None
+    if not res.empty:
+        ranking = (res.groupby(["nome_equipe", "cidade"], as_index=False)
+                     .agg(qtd_participacoes=("nome_prova", "count"),
+                          pontuacao_total=("pontuacao", "sum"),
+                          pontuacao_media=("pontuacao", "mean"),
+                          melhor_pontuacao=("pontuacao", "max"))
+                     .sort_values("pontuacao_total", ascending=False))
+        lider = ranking.iloc[0]
+    else:
+        ranking = res
+
+    cards = st.columns(5)
+    cards[0].metric("Equipes com resultado", int(ranking.nome_equipe.nunique()) if not ranking.empty else 0)
+    cards[1].metric("Robôs avaliados", int(res.nome_robo.nunique()) if not res.empty else 0)
+    cards[2].metric("Provas", int(res.nome_prova.nunique()) if not res.empty else 0)
+    cards[3].metric("Média geral", f"{res.pontuacao.mean():.2f}" if not res.empty else "-")
+    with cards[4]:
+        nome_lider = lider.nome_equipe if lider is not None else "-"
+        st.markdown(
+            f'<div class="leader-card"><div class="leader-label">Líder atual</div>'
+            f'<div class="leader-name">{nome_lider}</div></div>',
+            unsafe_allow_html=True,
+        )
+
+    bloco_historia("01 · Liderança", "Quem está liderando?",
+                    "Somamos as pontuações dos resultados filtrados. A equipe no topo é a referência para a próxima leitura.")
+    if not ranking.empty:
+        c1, c2 = st.columns([1.45, 1])
+        with c1:
+            fig = px.bar(ranking.sort_values("pontuacao_total"), x="pontuacao_total", y="nome_equipe",
+                         orientation="h", title="Pontuação total por equipe", labels={"pontuacao_total": "Pontos", "nome_equipe": ""},
+                         color="pontuacao_total", color_continuous_scale=ESCALA,
+                         custom_data=["cidade", "qtd_participacoes", "pontuacao_media", "melhor_pontuacao"])
+            fig.update_coloraxes(showscale=False)
+            fig.update_traces(marker_line_width=0, hovertemplate="<b>%{y}</b><br>%{x:.1f} pontos<extra>Clique para detalhes</extra>")
+            evento = grafico(fig)
+            pontos = pontos_selecionados(evento)
+            if pontos:
+                p = pontos[0]
+                d = p.get("customdata", [])
+                st.info(f"**{p.get('y', 'Equipe')}** · {d[0]} · {int(d[1])} participação(ões) · média {float(d[2]):.2f} · melhor {float(d[3]):.2f} pontos.")
+        with c2:
+            cat = todos_robos.groupby("categoria", as_index=False).size().rename(columns={"size": "qtd"}) if not todos_robos.empty else res.groupby("categoria", as_index=False).size().rename(columns={"size": "qtd"})
+            if not cat.empty:
+                fig = px.pie(cat, names="categoria", values="qtd", hole=.58, title="Robôs por categoria", color_discrete_sequence=PALETA)
+                fig.update_traces(marker=dict(line=dict(color="#0F172A", width=3)), hovertemplate="<b>%{label}</b><br>%{value} robô(s)<extra>Clique para detalhes</extra>")
+                evento = grafico(fig)
+                pontos = pontos_selecionados(evento)
+                if pontos:
+                    p = pontos[0]
+                    st.info(f"Categoria **{p.get('label', 'selecionada')}**: {p.get('value', 0)} robô(s).")
+
+    bloco_historia("02 · Alcance", "Onde o torneio está acontecendo?",
+                    "A comparação entre cidades mostra a distribuição das equipes e dos robôs que sustentam a competição.")
+    cid = (todos_robos.groupby("cidade", as_index=False)
+           .agg(robos=("nome_robo", "count"), equipes=("nome_equipe", "nunique"))
+           .sort_values("robos", ascending=False)) if not todos_robos.empty else res.groupby("cidade", as_index=False).agg(robos=("nome_robo", "count"), equipes=("nome_equipe", "nunique"))
+    if not cid.empty:
+        fig = px.bar(cid, x="cidade", y=["equipes", "robos"], barmode="group", title="Equipes e robôs por cidade",
+                     labels={"cidade": "", "value": "Quantidade", "variable": ""}, color_discrete_sequence=["#68C9C3", "#F4B46A"])
         fig.update_traces(marker_line_width=0)
-        fig.update_layout(bargap=0.25)
+        fig.update_layout(bargap=.25)
         grafico(fig)
 
-    cid = consultar("""SELECT e.cidade, COUNT(DISTINCT e.id_equipe) AS equipes, COUNT(ro.id_robo) AS robos
-                         FROM equipe e LEFT JOIN robo ro ON ro.id_equipe = e.id_equipe
-                        GROUP BY e.cidade ORDER BY robos DESC""")
-    fig = px.bar(cid, x="cidade", y=["equipes", "robos"], barmode="group", title="Equipes e robôs por cidade",
-                 labels={"cidade": "", "value": "Quantidade", "variable": ""},
-                 color_discrete_sequence=["#0E7490", "#22D3EE"])
-    fig.update_traces(marker_line_width=0)
-    fig.update_layout(bargap=0.25)
-    grafico(fig)
+    bloco_historia("03 · Consistência", "Em quais provas o desempenho se sustenta?",
+                    "A média indica o desempenho típico; a distribuição revela se os resultados são consistentes ou dependem de poucos picos.")
+    if not res.empty:
+        c3, c4 = st.columns(2)
+        with c3:
+            fig = px.box(res, x="nome_prova", y="pontuacao", points="all", hover_data=["nome_robo", "nome_equipe"],
+                         title="Distribuição das pontuações por prova", labels={"nome_prova": "", "pontuacao": "Pontuação"},
+                         color_discrete_sequence=[PALETA[0]])
+            fig.update_traces(fillcolor="rgba(139,124,246,.16)", line=dict(width=1.5), marker=dict(size=6, opacity=.85))
+            grafico(fig)
+        with c4:
+            est = (res.groupby("categoria", as_index=False)
+                   .agg(menor_pontuacao=("pontuacao", "min"), media_pontuacao=("pontuacao", "mean"), maior_pontuacao=("pontuacao", "max")))
+            fig = px.bar(est, x="categoria", y=["menor_pontuacao", "media_pontuacao", "maior_pontuacao"], barmode="group",
+                         title="Pontuação por categoria", labels={"categoria": "", "value": "Pontuação", "variable": ""}, color_discrete_sequence=SEQ3)
+            fig.update_traces(marker_line_width=0)
+            fig.update_layout(bargap=.25)
+            grafico(fig)
+
+        bloco_historia("04 · Detalhamento", "Quais registros formam o resultado?",
+                        "A tabela abaixo liga prova, robô, equipe e classificação para facilitar a conferência antes da apresentação.")
+        tabela(res.sort_values(["nome_prova", "classificacao"])[["nome_prova", "classificacao", "pontuacao", "nome_robo", "categoria", "nome_equipe", "cidade"]].head(12), hide_index=True, width="stretch")
 
 
 def pagina_integridade():
@@ -750,14 +992,47 @@ ICONES = {
     "Integrantes": "👤", "Consultas": "🔎", "Dashboard": "📊", "Integridade e Trigger": "⚡",
 }
 
+st.markdown("""<style>
+[data-testid="stSidebar"] .stButton button { border-radius:10px; border-color:var(--border); background:transparent; color:var(--muted); }
+[data-testid="stSidebar"] .stButton button:hover { border-color:var(--accent-light); color:var(--text); background:rgba(139,124,246,.10); }
+[data-testid="stSidebar"] .stButton button[data-testid="stBaseButton-primary"] { background:rgba(139,124,246,.18); color:var(--text); border-color:var(--border-strong); box-shadow:inset 3px 0 0 var(--accent-light); }
+[data-testid="stSidebar"][data-collapsed="true"] {
+  display:block!important; visibility:visible!important; opacity:1!important;
+  width:300px!important; min-width:300px!important; max-width:300px!important;
+  transform:none!important;
+}
+[data-testid="stSidebar"][data-collapsed="true"] [data-testid="stSidebarContent"] {
+  display:block!important; visibility:visible!important; opacity:1!important;
+}
+[data-testid="stSidebar"][data-collapsed="true"] + * { margin-left:0!important; }
+[data-testid="stSidebarCollapseButton"] { display:none!important; }
+[data-testid="stSidebar"] button[data-testid="stBaseButton-headerNoPadding"] { display:none!important; }
+[data-testid="stSidebar"] .stButton button[aria-label="Alternar tema"] { width:2.55rem; min-width:2.55rem; padding:.35rem; font-size:1.15rem; }
+</style>""", unsafe_allow_html=True)
+
 st.sidebar.markdown(
     '<div class="brand"><div class="brand-logo">🤖</div><div>'
     '<div class="brand-title">Torneio de Robótica</div>'
     '<div class="brand-sub">Painel de gestão</div></div></div>',
     unsafe_allow_html=True,
 )
-escolha = st.sidebar.radio("Página", list(PAGINAS), label_visibility="collapsed",
-                           format_func=lambda p: f"{ICONES[p]}  {p}")
+def alternar_tema():
+    st.session_state.tema = "Escuro" if st.session_state.tema == "Claro" else "Claro"
+
+
+def selecionar_pagina(pagina):
+    st.session_state.pagina_menu = pagina
+
+
+if "pagina_menu" not in st.session_state:
+    st.session_state.pagina_menu = "Início"
+for pagina in PAGINAS:
+    rotulo = f"{ICONES[pagina]}  {pagina}"
+    st.sidebar.button(rotulo, key=f"menu_{pagina.lower().replace(' ', '_')}",
+                      type="primary" if st.session_state.pagina_menu == pagina else "secondary",
+                      on_click=selecionar_pagina, args=(pagina,), use_container_width=True)
+escolha = st.session_state.pagina_menu
+st.session_state.pagina_atual = escolha
 
 if "flash" in st.session_state:
     st.success(st.session_state.pop("flash"))
@@ -765,6 +1040,14 @@ if "flash" in st.session_state:
 try:
     PAGINAS[escolha]()
 except mysql.connector.Error as e:
-    st.error("Não foi possível acessar o banco. Verifique se o MySQL está rodando, "
-             "se o script torneio_robotica.sql foi executado e se a senha em config.py está correta.")
+    if e.errno == 1045:
+        st.error("A conexão foi recusada por usuário ou senha (MySQL 1045). Defina a senha correta em DB_PASSWORD; nenhum volume foi alterado.")
+    elif e.errno == 2003:
+        st.error("Não foi possível alcançar o MySQL. Confirme se o container está ativo e se DB_HOST=127.0.0.1 e DB_PORT=3307 apontam para a porta publicada.")
+    elif e.errno == 1049:
+        st.error("O banco torneio_robotica não existe nessa instância. O script principal pode recriar o banco; faça backup e confirme antes de executá-lo.")
+    elif e.errno == 1146:
+        st.error("Uma ou mais tabelas esperadas não existem no banco torneio_robotica. Verifique o schema antes de carregar o script principal, que recria o banco.")
+    else:
+        st.error("Não foi possível acessar o banco de dados. Confira a conexão e o schema local.")
     st.code(str(e))
