@@ -1,0 +1,8 @@
+comando de instalação:
+    npm install -g firebase-tools
+
+------------------
+node.js
+java
+firebase CLI
+------------------
